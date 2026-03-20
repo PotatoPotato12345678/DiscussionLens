@@ -101,26 +101,26 @@ class MainFunctions:
         
         @staticmethod
         def group_by_speaker(data: Output_For_ChatGPT_Keyword_Extraction) -> GROUPED_OVERALL_EXTRACTED_KEYWORDS:
-            grouped_results = []
+            speaker_dict = defaultdict(list)
 
             for keyword_item in data.results:
-                speakers = defaultdict(list)
+                keyword = keyword_item.keyword
 
                 for line in keyword_item.items:
-                    parsed = SmallFunctions.parse_line(line)
+                    parsed = SmallFunctions.parse_line(line)  # returns (timestamp, speaker, text)
                     if parsed:
                         timestamp, speaker, text = parsed
-                        speakers[speaker].append({
-                            "timestamp": timestamp,
-                            "text": text
-                        })
+                        # find if keyword entry exists for this speaker
+                        existing = next((k for k in speaker_dict[speaker] if k["keyword"] == keyword), None)
+                        if existing:
+                            existing["items"].append({"timestamp": timestamp, "text": text})
+                        else:
+                            speaker_dict[speaker].append({
+                                "keyword": keyword,
+                                "items": [{"timestamp": timestamp, "text": text}]
+                            })
 
-                grouped_results.append({
-                    "keyword": keyword_item.keyword,
-                    "speakers": dict(speakers)
-                })
-
-            return GROUPED_OVERALL_EXTRACTED_KEYWORDS.model_validate({"results": grouped_results})
+            return dict(speaker_dict)
         
         @staticmethod
         def save_overall_grouped_keywords(grouped_overall_keywords: GROUPED_OVERALL_EXTRACTED_KEYWORDS, filename=OVERALL_GROUPED_EXTRACTED_KEYWORDS_JSON_FILENAME) -> None:
