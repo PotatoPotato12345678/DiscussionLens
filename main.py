@@ -1,5 +1,5 @@
 from utilities.main_functions import MainFunctions
-from utilities.global_constant import TRANSCRIPT_JSON_FILENAME, OVERALL_EXTRACRTED_KEYWORDS_JSON_FILENAME
+from utilities.global_constant import TRANSCRIPT_JSON_FILENAME, OVERALL_EXTRACRTED_KEYWORDS_JSON_FILENAME, OVERALL_GROUPED_EXTRACTED_KEYWORDS_JSON_FILENAME
 
 import os
 from dotenv import load_dotenv
@@ -26,8 +26,18 @@ if __name__ == "__main__":
         keywords = MainFunctions.Keyword_Extraction.extract_overall_keywords(data)
 
         # Step 5: Save the extracted keywords to a JSON file
-        MainFunctions.Keyword_Extraction.save_keywords(keywords)
+        MainFunctions.Keyword_Extraction.save_overall_keywords(keywords)
     else:
         print("Step 4 and Step 5 skipped.")
+
+    if not os.path.exists(OVERALL_GROUPED_EXTRACTED_KEYWORDS_JSON_FILENAME):
+        # Step 6: Read the extracted overall keywords from the JSON file
+        keywords = MainFunctions.Keyword_Extraction.read_overall_keywords()
+
+        # Step 7: Group the overall keywords by speaker
+        grouped_keywords = MainFunctions.Keyword_Extraction.group_by_speaker(keywords)
+
+        # Step 8: Save the grouped keywords to a JSON file
+        MainFunctions.Keyword_Extraction.save_overall_grouped_keywords(grouped_keywords)
 
     print("Process completed.")

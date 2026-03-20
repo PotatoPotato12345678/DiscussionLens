@@ -1,4 +1,4 @@
-
+from typing import TypeAlias
 from pydantic import BaseModel, Field
 
 class TranscriptType(BaseModel):
@@ -23,17 +23,23 @@ class Input_For_ChatGPT_Keyword_Extraction(BaseModel):
     """
     text:str
 
-
-class Keyword_Extraction_Item(BaseModel):
-    """
-    One extracted keyword and its related transcript lines.
-    """
-    keyword: str
-    items: list[str] = Field(default_factory=list)
-
-
 class Output_For_ChatGPT_Keyword_Extraction(BaseModel):
     """
     For Output of ChatGPT for keyword extraction
     """
+    class Keyword_Extraction_Item(BaseModel):
+        keyword: str
+        items: list[str] = Field(default_factory=list)
+
     results: list[Keyword_Extraction_Item] = Field(default_factory=list)
+
+
+class GROUPED_OVERALL_EXTRACTED_KEYWORDS(BaseModel):
+    """
+    For Output of ChatGPT for keyword extraction
+    """
+    class Grouped_Keyword_Extraction_Item(BaseModel):
+        keyword: str
+        speakers: dict[str, list[str]] = Field(default_factory=dict)
+
+    results: list[Grouped_Keyword_Extraction_Item] = Field(default_factory=list)

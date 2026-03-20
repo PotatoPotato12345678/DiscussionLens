@@ -1,5 +1,6 @@
 TRANSCRIPT_JSON_FILENAME = "one_episode.json"
 OVERALL_EXTRACRTED_KEYWORDS_JSON_FILENAME = "overall_extracted_keywords.json"
+OVERALL_GROUPED_EXTRACTED_KEYWORDS_JSON_FILENAME = "overall_grouped_extracted_keywords.json"
 
 KEYWORD_EXTRACTION_MAIN_CONTEXT = f"""
         Task:
