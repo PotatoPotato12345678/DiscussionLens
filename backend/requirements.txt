@@ -1,0 +1,9 @@
+openai
+pandas
+pydantic
+python-dotenv
+tiktoken
+datasets
+supabase
+fastapi
+uvicorn

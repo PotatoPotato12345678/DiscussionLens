@@ -6,6 +6,7 @@ class Original_Transcript(BaseModel):
     Define the structure of a transcript segment.
     """
     speaker: str
+    timestamp: float
     text: str
 class Input_For_ChatGPT_Keyword_Extraction(BaseModel):
     """

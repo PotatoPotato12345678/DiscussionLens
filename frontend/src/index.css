@@ -1,13 +1,82 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design system — Perspective Mind Map
+   All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Core palette */
+    --background: 240 11% 4%;        /* #0a0a0f */
+    --foreground: 220 20% 92%;
+
+    --card: 240 10% 7%;
+    --card-foreground: 220 20% 92%;
+
+    --popover: 240 10% 8%;
+    --popover-foreground: 220 20% 92%;
+
+    --primary: 221 83% 60%;          /* blue speaker */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 8% 14%;
+    --secondary-foreground: 220 20% 75%;
+
+    --muted: 240 8% 12%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 240 8% 16%;
+    --accent-foreground: 220 20% 90%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 6% 18%;
+    --input: 240 6% 18%;
+    --ring: 221 83% 60%;
+
+    --radius: 0.75rem;
+
+    /* Speaker colors (used as CSS vars for JS access) */
+    --speaker-0: 221 83% 60%;   /* #3b82f6 blue */
+    --speaker-1: 25 95% 53%;    /* #f97316 orange */
+    --speaker-2: 142 71% 45%;   /* #22c55e green */
+    --speaker-3: 292 91% 73%;   /* #e879f9 pink */
+
+    /* Navbar height token */
+    --navbar-h: 3.5rem;
+
+    --sidebar-background: 240 10% 7%;
+    --sidebar-foreground: 220 20% 75%;
+    --sidebar-primary: 221 83% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 8% 14%;
+    --sidebar-accent-foreground: 220 20% 90%;
+    --sidebar-border: 240 6% 18%;
+    --sidebar-ring: 221 83% 60%;
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: hsl(var(--background)); }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 }
+
