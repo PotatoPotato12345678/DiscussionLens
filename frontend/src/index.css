@@ -8,8 +8,59 @@
 
 @layer base {
   :root {
-    /* Core palette */
-    --background: 240 11% 4%;        /* #0a0a0f */
+    /* Light theme */
+    --background: 220 20% 97%;
+    --foreground: 240 11% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 11% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 11% 10%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 92%;
+    --secondary-foreground: 240 11% 20%;
+
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 220 15% 90%;
+    --accent-foreground: 240 11% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.75rem;
+
+    /* Speaker colors (used as CSS vars for JS access) */
+    --speaker-0: 221 83% 60%;   /* #3b82f6 blue */
+    --speaker-1: 25 95% 53%;    /* #f97316 orange */
+    --speaker-2: 142 71% 45%;   /* #22c55e green */
+    --speaker-3: 292 91% 73%;   /* #e879f9 pink */
+
+    /* Navbar height token */
+    --navbar-h: 3.5rem;
+
+    --sidebar-background: 220 15% 94%;
+    --sidebar-foreground: 240 11% 20%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 90%;
+    --sidebar-accent-foreground: 240 11% 15%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-ring: 221 83% 53%;
+  }
+
+  .dark {
+    /* Dark theme */
+    --background: 240 11% 4%;
     --foreground: 220 20% 92%;
 
     --card: 240 10% 7%;
@@ -18,7 +69,7 @@
     --popover: 240 10% 8%;
     --popover-foreground: 220 20% 92%;
 
-    --primary: 221 83% 60%;          /* blue speaker */
+    --primary: 221 83% 60%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 8% 14%;
@@ -37,17 +88,6 @@
     --input: 240 6% 18%;
     --ring: 221 83% 60%;
 
-    --radius: 0.75rem;
-
-    /* Speaker colors (used as CSS vars for JS access) */
-    --speaker-0: 221 83% 60%;   /* #3b82f6 blue */
-    --speaker-1: 25 95% 53%;    /* #f97316 orange */
-    --speaker-2: 142 71% 45%;   /* #22c55e green */
-    --speaker-3: 292 91% 73%;   /* #e879f9 pink */
-
-    /* Navbar height token */
-    --navbar-h: 3.5rem;
-
     --sidebar-background: 240 10% 7%;
     --sidebar-foreground: 220 20% 75%;
     --sidebar-primary: 221 83% 60%;
@@ -57,6 +97,46 @@
     --sidebar-border: 240 6% 18%;
     --sidebar-ring: 221 83% 60%;
   }
+}
+
+/* Floating bubble animations for landing page */
+@keyframes orbit-pair-a {
+  0%, 100% { transform: translate(0px, 0px); }
+  45%, 55% { transform: translate(30px, -10px); }
+}
+@keyframes orbit-pair-b {
+  0%, 100% { transform: translate(0px, 0px); }
+  45%, 55% { transform: translate(-30px, 10px); }
+}
+@keyframes group-drift {
+  0%, 100% { transform: translate(0px, 0px); }
+  42%, 58% { transform: translate(62px, 14px); }
+}
+@keyframes solo-drift {
+  0%, 100% { transform: translate(0px, 0px); }
+  42%, 58% { transform: translate(-62px, -14px); }
+}
+@keyframes float-a {
+  0%, 100% { transform: translate(0px, 0px); }
+  25%       { transform: translate(28px, -18px); }
+  50%       { transform: translate(12px, 22px); }
+  75%       { transform: translate(-20px, 8px); }
+}
+@keyframes float-b {
+  0%, 100% { transform: translate(0px, 0px); }
+  30%       { transform: translate(-24px, 16px); }
+  60%       { transform: translate(18px, -24px); }
+  80%       { transform: translate(8px, 14px); }
+}
+@keyframes float-c {
+  0%, 100% { transform: translate(0px, 0px); }
+  40%       { transform: translate(20px, 28px); }
+  70%       { transform: translate(-16px, -10px); }
+}
+@keyframes float-d {
+  0%, 100% { transform: translate(0px, 0px); }
+  35%       { transform: translate(-28px, -22px); }
+  65%       { transform: translate(14px, 18px); }
 }
 
 @layer base {
