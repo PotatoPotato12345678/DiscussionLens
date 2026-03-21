@@ -5,30 +5,27 @@
 #
 # ------------------------------------------------------------------
 
-from utilities.type_def import TranscriptType, Input_For_ChatGPT_Keyword_Extraction
+from utilities.type_def import Original_Transcript, Input_For_ChatGPT_Keyword_Extraction
 from utilities.global_constant import MODEL
 
-from typing import List
 import tiktoken
 import re
 class SmallFunctions:
     @staticmethod
-    def json_to_string(data: List[TranscriptType]) -> Input_For_ChatGPT_Keyword_Extraction:
+    def dict_to_string(data: Original_Transcript) -> Input_For_ChatGPT_Keyword_Extraction:
         """
-        Called in extract_overall_keywords
+        Called in extract_keywords
         """
         lines = []
-        for item in data:
-            timestamp = round(item["timestamp"], 2)
-            speaker = item["speaker"]
-            text = item["text"]
-            lines.append(f"[{timestamp}] {speaker}: {text}")
-        return "\n".join(lines)
+        speaker: str = data.speaker
+        text: str = data.text
+        string_output = f"{speaker}: {text}"
+        return Input_For_ChatGPT_Keyword_Extraction(text=string_output)
 
     @staticmethod
     def count_tokens(text: str, model: str = MODEL) -> int:
         """
-        Called in extract_overall_keywords
+        Called in extract_keywords
         """
         encoding = tiktoken.encoding_for_model(model)
         tokens = encoding.encode(text)

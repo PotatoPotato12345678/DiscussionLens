@@ -1,43 +1,33 @@
 from utilities.main_functions import MainFunctions
-from utilities.global_constant import TRANSCRIPT_JSON_FILENAME, OVERALL_EXTRACRTED_KEYWORDS_JSON_FILENAME, OVERALL_GROUPED_EXTRACTED_KEYWORDS_JSON_FILENAME
+from utilities.global_constant import SPEAKER_GROUP_KEYWORDS_JSON_FILENAME
+from utilities.type_def import Original_Transcript, Output_For_ChatGPT_Keyword_Extraction
 
 import os
+import sys
 from dotenv import load_dotenv
+import time
+from typing import Generator, List
 import json
 
 if __name__ == "__main__":
     # Load environment variables from .env file
     load_dotenv()
 
-    if not os.path.exists(TRANSCRIPT_JSON_FILENAME):
-        # Step 1: Read the transcript data from the online database
-        data = MainFunctions.Transcript_Initialization.read_db()
+    # Step 1: Read a transcript from a CSV file
+    data: List[Original_Transcript] = MainFunctions.Transcript_Initialization.read_transcript_csv()
+    streamed_data_generator: Generator[Original_Transcript, None, None] = MainFunctions.Transcript_Initialization.stream_transcript(data)
 
-        # Step 2: Save the data to a JSON file
-        MainFunctions.Transcript_Initialization.save_db(data)
-    else:
-        print("Step 1 and Step 2 skipped.")
+    for next_streamed_item in streamed_data_generator:
+        time.sleep(1)  # Simulate streaming delay
 
-    # Step 3: Read the data back from the JSON file
-    data = MainFunctions.Transcript_Initialization.read_transcript_json()
-
-    if not os.path.exists(OVERALL_EXTRACRTED_KEYWORDS_JSON_FILENAME):
+        print("----Data streamed-----")
+        
+        # Step 2: Save the transcript data to a JSON file
+        MainFunctions.Transcript_Initialization.save_streamed_transcript_dict(next_streamed_item)
+        
         # Step 4: Extract keywords for whole the discussionusing ChatGPT
-        keywords = MainFunctions.Keyword_Extraction.extract_overall_keywords(data)
+        keywords: Output_For_ChatGPT_Keyword_Extraction = MainFunctions.Keyword_Extraction.extract_keywords(next_streamed_item)
 
         # Step 5: Save the extracted overall keywords to a JSON file
-        MainFunctions.Keyword_Extraction.save_overall_keywords(keywords)
-    else:
-        print("Step 4 and Step 5 skipped.")
-
-    if not os.path.exists(OVERALL_GROUPED_EXTRACTED_KEYWORDS_JSON_FILENAME):
-        # Step 6: Read the extracted overall keywords from the JSON file
-        keywords = MainFunctions.Keyword_Extraction.read_overall_keywords()
-
-        # Step 7: Group the overall keywords by speaker
-        grouped_keywords = MainFunctions.Keyword_Extraction.group_by_speaker(keywords)
-
-        # Step 8: Save the grouped keywords to a JSON file
-        MainFunctions.Keyword_Extraction.save_overall_grouped_keywords(grouped_keywords)
-
-    print("Process completed.")
+        MainFunctions.Keyword_Extraction.save_keywords(keywords)
+        print("Process completed.")
