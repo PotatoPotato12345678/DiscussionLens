@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { LogOut, Crown, ArrowRight, HelpCircle, ChevronDown, ChevronUp, X, Plus } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import polrityLogo from "@/assets/polrity-logo.svg";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMeetings, type DbMeeting } from "@/lib/mindMapUtils";
+import { supabase } from "@/integrations/supabase/client";
 import { FAQ_ITEMS } from "@/data/faqItems";
 
 function HelpDialog({ onClose }: { onClose: () => void }) {
@@ -71,10 +72,24 @@ export default function MeetingList() {
   const [multiMode, setMultiMode] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
+
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery<DbMeeting[]>({
     queryKey: ["meetings"],
     queryFn: fetchMeetings,
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("meetinglist-meetings")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "meetings" },
+        () => { queryClient.invalidateQueries({ queryKey: ["meetings"] }); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   // TODO: replace with real value from user's account / purchase state
   // Pro/monthly subscribers → Infinity; free users → credits remaining

@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { MindMapNavbar } from "@/components/MindMapNavbar";
 import { BubblePanel } from "@/components/BubblePanel";
 import { SharedKeywordModal } from "@/components/SharedKeywordModal";
@@ -35,6 +36,26 @@ export default function Index() {
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const [hoveredKeyword, setHoveredKeyword] = useState<string | null>(null);
   const [draggingMeetingIdx, setDraggingMeetingIdx] = useState<number | null>(null);
+
+  // ── Realtime: invalidate meeting data when new mentions arrive ───────────
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (activeIds.length === 0) return;
+    const channel = supabase
+      .channel("index-keyword-mentions")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "keyword_mentions" },
+        (payload) => {
+          const meetingId = (payload.new as { meeting_id: string }).meeting_id;
+          if (activeIds.includes(meetingId)) {
+            queryClient.invalidateQueries({ queryKey: ["meeting-data", meetingId] });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeIds, queryClient]);
 
   // ── Fetch meetings list (for the selector sidebar) ────────────────────────
   const { data: dbMeetings = [] } = useQuery({
