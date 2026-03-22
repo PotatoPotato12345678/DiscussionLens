@@ -52,23 +52,41 @@ async def summarize(req: SummarizeRequest):
     )
     user_message = f'Topic: "{req.keyword}"\n\nSpeaker quotes:\n\n{speaker_lines}'
 
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        speaker_names = ", ".join(s.speaker for s in req.sections)
+        return SummarizeResponse(
+            summary=(
+                f"[Demo] The topic \"{req.keyword}\" was discussed by {speaker_names}. "
+                "AI-powered insight extraction will be available once the backend is fully connected. "
+                "This is a placeholder summary shown in sandbox mode."
+            )
+        )
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an impartial discussion analyst. "
-                    "Write a concise 2-3 sentence unbiased summary of how the speakers addressed the given topic. "
-                    "Highlight agreements, disagreements, and unique perspectives. Be neutral and factual."
-                ),
-            },
-            {"role": "user", "content": user_message},
-        ],
-        max_tokens=180,
-    )
+    client = OpenAI(api_key=api_key)
 
-    summary = response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an impartial discussion analyst. "
+                        "Write a concise 2-3 sentence unbiased summary of how the speakers addressed the given topic. "
+                        "Highlight agreements, disagreements, and unique perspectives. Be neutral and factual."
+                    ),
+                },
+                {"role": "user", "content": user_message},
+            ],
+            max_tokens=180,
+        )
+        summary = response.choices[0].message.content.strip()
+    except Exception:
+        speaker_names = ", ".join(s.speaker for s in req.sections)
+        summary = (
+            f"[Demo] The topic \"{req.keyword}\" was discussed by {speaker_names}. "
+            "AI-powered insight extraction will be available once the backend is fully connected."
+        )
+
     return SummarizeResponse(summary=summary)

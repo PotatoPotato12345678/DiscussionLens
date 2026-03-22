@@ -47,6 +47,13 @@ interface TooltipState {
   snippet: string;
 }
 
+function splitKeyword(keyword: string): string[] {
+  const words = keyword.split(" ");
+  if (words.length <= 2) return [keyword];
+  const mid = Math.ceil(words.length / 2);
+  return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+}
+
 function truncateWords(text: string, maxWords: number): string {
   const words = text.split(/\s+/);
   if (words.length <= maxWords) return text;
@@ -205,23 +212,33 @@ export function BubblePanel({
       .attr("data-speaker", speakerName)
       .attr("data-meeting", meetingId)
       .attr("data-radius", (d) => d.r)
-      .style("cursor", readonly ? "default" : "grab");
+      .style("cursor", readonly ? "default" : "grab")
+      .style("opacity", "0")
+      .style("transition", "opacity 250ms ease-out");
 
     const innerGroups = nodeGroups
       .append("g")
-      .attr("class", "bubble-inner")
-      .style("transform-origin", "0 0")
-      .style("transform-box", "fill-box");
+      .attr("class", "bubble-inner");
 
     innerGroups.each(function (_, i) {
       const el = this as SVGGElement;
-      innerGroupMap.current.set(nodes[i].keyword, el);
       const floatDuration = 6 + ((i * 37) % 40) / 10;
       const floatDelay = i * 0.4;
       el.style.animation = `bubbleFloat${i % MAX_BUBBLES} ${floatDuration}s ease-in-out ${floatDelay}s infinite`;
     });
 
-    innerGroups.append("circle")
+    // Separate group for hover scale — keeps float animation on bubble-inner untouched
+    const scaleGroups = innerGroups
+      .append("g")
+      .attr("class", "bubble-scale")
+      .style("transform-origin", "0 0")
+      .style("transform-box", "fill-box");
+
+    scaleGroups.each(function (_, i) {
+      innerGroupMap.current.set(nodes[i].keyword, this as SVGGElement);
+    });
+
+    scaleGroups.append("circle")
       .attr("r", (d) => d.r)
       .attr("fill", (_, i) => `url(#${gradId(i)})`)
       .attr("stroke", (d) => {
@@ -237,7 +254,7 @@ export function BubblePanel({
       });
 
     // Shared dot (within-meeting)
-    innerGroups.filter((d) => d.isShared && !d.isCrossMeeting)
+    scaleGroups.filter((d) => d.isShared && !d.isCrossMeeting)
       .append("circle")
       .attr("r", 3)
       .attr("cy", (d) => -d.r + 8)
@@ -246,7 +263,7 @@ export function BubblePanel({
       .style("filter", "drop-shadow(0 0 4px rgba(255,255,255,0.9))");
 
     // Cross-meeting star dot
-    innerGroups.filter((d) => !!d.isCrossMeeting)
+    scaleGroups.filter((d) => !!d.isCrossMeeting)
       .append("circle")
       .attr("r", 4)
       .attr("cy", (d) => -d.r + 8)
@@ -254,38 +271,40 @@ export function BubblePanel({
       .attr("pointer-events", "none")
       .style("filter", "drop-shadow(0 0 6px rgba(255,220,80,0.9))");
 
-    innerGroups.append("text")
+    scaleGroups.append("text")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .attr("y", (d) => (d.count > 1 ? -7 : 0))
       .attr("pointer-events", "none")
       .each(function (d) {
         const el = d3.select(this);
-        const word = d.keyword;
+        const lines = splitKeyword(d.keyword);
         const maxWidth = d.r * 1.44;
-        let fs = Math.max(9, Math.min(15, d.r * 0.40));
-        while (fs > 8 && word.length * fs * 0.58 > maxWidth) fs -= 0.5;
+        const longestLine = lines.reduce((a, b) => a.length > b.length ? a : b);
+
+        let fs = Math.max(9, Math.min(22, d.r * 0.52));
+        while (fs > 8 && longestLine.length * fs * 0.58 > maxWidth) fs -= 0.5;
+
         el.attr("font-size", fs)
           .attr("font-weight", "600")
           .attr("fill", "rgba(255,255,255,0.92)")
-          .attr("letter-spacing", "0.02em")
-          .text(word);
-      });
+          .attr("letter-spacing", "0.02em");
 
-    innerGroups.filter((d) => d.r > 20)
-      .append("text")
-      .attr("text-anchor", "middle")
-      .attr("dominant-baseline", "middle")
-      .attr("y", 9)
-      .attr("font-size", (d) => Math.max(8, Math.min(11, d.r * 0.26)))
-      .attr("fill", hexToRgba(color, 0.60))
-      .attr("pointer-events", "none")
-      .text((d) => `×${d.count}`);
+        const lineHeight = fs * 1.25;
+        const totalHeight = lineHeight * lines.length;
+        const baseY = -(totalHeight / 2) + (lineHeight / 2);
+
+        lines.forEach((line, i) => {
+          el.append("tspan")
+            .attr("x", 0)
+            .attr("dy", i === 0 ? baseY : lineHeight)
+            .text(line);
+        });
+      });
 
     nodeGroups
       .on("mouseenter", function (event: MouseEvent, d: SimNode) {
         if (draggingRef.current) return;
-        const inner = this.querySelector<SVGGElement>(".bubble-inner");
+        const inner = this.querySelector<SVGGElement>(".bubble-scale");
         const circle = inner?.querySelector("circle");
         if (inner) { inner.style.transform = "scale(1.12)"; inner.style.transition = "transform 150ms ease-out"; }
         if (circle) circle.style.filter = `drop-shadow(0 0 28px ${hexToRgba(color, 0.85)}) drop-shadow(0 0 12px ${hexToRgba(color, 0.9)})`;
@@ -309,7 +328,7 @@ export function BubblePanel({
       .on("mouseleave", function (_event: MouseEvent, d: SimNode) {
         if (draggingRef.current && crossPanelRef.current) return;
         this.removeAttribute("data-hovered");
-        const inner = this.querySelector<SVGGElement>(".bubble-inner");
+        const inner = this.querySelector<SVGGElement>(".bubble-scale");
         const circle = inner?.querySelector("circle");
         if (inner) inner.style.transform = "";
         if (circle) circle.style.filter = d.isCrossMeeting
@@ -411,10 +430,12 @@ export function BubblePanel({
 
     const sim = d3.forceSimulation<SimNode>(nodes)
       .alphaDecay(0)
-      .velocityDecay(readonly ? 0.08 : 0.012)
+      .velocityDecay(readonly ? 0.08 : 0.06)
       .force("collide",
         d3.forceCollide<SimNode>().radius((d) => d.r + 2).strength(1.0).iterations(8)
       )
+      .force("cx", d3.forceX<SimNode>(width / 2).strength(0.0001))
+      .force("cy", d3.forceY<SimNode>(height / 2).strength(0.0001))
       .on("tick", () => {
         for (let i = 0; i < nodes.length; i++) {
           for (let j = i + 1; j < nodes.length; j++) {
@@ -459,7 +480,28 @@ export function BubblePanel({
       });
 
     simRef.current = sim;
-    return () => { sim.stop(); };
+
+    // Spawn bubbles one by one
+    const SPAWN_DELAY = 100; // ms between each bubble
+    const spawnTimers: ReturnType<typeof setTimeout>[] = [];
+    const outerEls = nodeGroups.nodes();
+    outerEls.forEach((el, i) => {
+      const scaleEl = el.querySelector<SVGGElement>(".bubble-scale");
+      if (scaleEl) {
+        scaleEl.style.transform = "scale(0)";
+        scaleEl.style.transition = "transform 250ms cubic-bezier(0.34,1.56,0.64,1)";
+      }
+      const t = setTimeout(() => {
+        el.style.opacity = "1";
+        if (scaleEl) scaleEl.style.transform = "scale(1)";
+      }, i * SPAWN_DELAY);
+      spawnTimers.push(t);
+    });
+
+    return () => {
+      sim.stop();
+      spawnTimers.forEach(clearTimeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bubbles, color, speakerName, meetingId, readonly]);
 

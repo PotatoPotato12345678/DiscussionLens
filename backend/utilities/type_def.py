@@ -49,3 +49,15 @@ class GROUPED_OVERALL_EXTRACTED_KEYWORDS(BaseModel):
         speakers: dict[str, list[LineItem]] = Field(default_factory=dict)
 
     results: list[Grouped_Keyword_Extraction_Item] = Field(default_factory=list)
+
+
+class KeywordMapping(BaseModel):
+    original: str
+    canonical: str
+
+class KeywordConsolidationOutput(BaseModel):
+    """
+    Maps each original keyword to its canonical (grouped) form.
+    Similar/synonym keywords share the same canonical value.
+    """
+    mapping: list[KeywordMapping] = Field(default_factory=list)

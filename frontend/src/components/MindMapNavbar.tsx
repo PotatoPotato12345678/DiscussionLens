@@ -2,6 +2,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { LogOut, Crown } from "lucide-react";
 import polrityLogo from "@/assets/polrity-logo.svg";
+import { Purchases } from "@revenuecat/purchases-js";
+import { useRevenueCat } from "@/contexts/RevenueCatContext";
 
 interface MeetingInfo {
   meeting: { title: string };
@@ -12,11 +14,27 @@ interface MeetingInfo {
 interface Props {
   allColorMaps: Record<string, string>;
   meetings: MeetingInfo[];
+  minMentions: number;
+  onMinMentionsChange: (v: number) => void;
 }
 
-export function MindMapNavbar({ allColorMaps, meetings }: Props) {
+export function MindMapNavbar({ allColorMaps, meetings, minMentions, onMinMentionsChange }: Props) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { refreshCustomerInfo, isSubscribed } = useRevenueCat();
+
+  const handleUpgrade = async () => {
+    if (!Purchases.isConfigured()) return;
+    try {
+      const offs = await Purchases.getSharedInstance().getOfferings();
+      const offering = offs.current ?? Object.values(offs.all)[0] ?? null;
+      if (!offering) { console.warn("[RC] No offerings available"); return; }
+      await Purchases.getSharedInstance().presentPaywall({ offering });
+      await refreshCustomerInfo();
+    } catch (err) {
+      console.error("[RC] presentPaywall error:", err);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,6 +76,23 @@ export function MindMapNavbar({ allColorMaps, meetings }: Props) {
         ))}
       </div>
 
+      {/* Mention filter */}
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 5].map((n) => (
+          <button
+            key={n}
+            onClick={() => onMinMentionsChange(n)}
+            className={`px-2 py-0.5 rounded text-xs font-medium transition-all ${
+              minMentions === n
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+            }`}
+          >
+            {n === 1 ? "All" : `${n}+`}
+          </button>
+        ))}
+      </div>
+
       {/* User + logout */}
       <div className="flex items-center gap-3">
         {user && (
@@ -73,12 +108,15 @@ export function MindMapNavbar({ allColorMaps, meetings }: Props) {
           <LogOut size={13} />
           <span>Sign out</span>
         </button>
-        <button
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all"
-        >
-          <Crown size={12} />
-          Upgrade
-        </button>
+        {!isSubscribed && (
+          <button
+            onClick={handleUpgrade}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all"
+          >
+            <Crown size={12} />
+            Upgrade
+          </button>
+        )}
       </div>
     </nav>
   );

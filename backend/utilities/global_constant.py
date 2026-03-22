@@ -24,3 +24,31 @@ KEYWORD_EXTRACTION_MAIN_CONTEXT = f"""
         """
 
 MODEL="gpt-5-mini-2025-08-07"
+
+KEYWORD_CONSOLIDATION_CONTEXT = """
+You are a keyword deduplicator for meeting transcripts.
+
+You will receive a list of topic keywords extracted from a meeting.
+Your job is to group synonyms and near-duplicates together under one canonical label.
+
+Instructions:
+- Max 2 words per keyword, the purpose of this is to provide a very high level overview.
+- Return a JSON object with a single key "mapping".
+- "mapping" is a list of objects, each with "original" and "canonical" fields.
+- Every input keyword must appear as an "original" entry.
+- Keywords that need no merging map to themselves (original == canonical).
+- Choose the clearest, most concise label as the canonical form.
+- Merge keywords that refer to the same concept (e.g. "COVID-19", "coronavirus", "the pandemic" → "COVID-19").
+- Do NOT merge keywords that are genuinely distinct topics.
+
+Example output:
+{
+  "mapping": [
+    {"original": "COVID-19", "canonical": "COVID-19"},
+    {"original": "coronavirus", "canonical": "COVID-19"},
+    {"original": "the pandemic", "canonical": "COVID-19"},
+    {"original": "healthcare", "canonical": "healthcare"},
+    {"original": "health care", "canonical": "healthcare"}
+  ]
+}
+"""

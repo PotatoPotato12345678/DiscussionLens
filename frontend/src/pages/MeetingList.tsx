@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Crown, ArrowRight, HelpCircle, ChevronDown, ChevronUp, X, Plus } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LogOut, Crown, HelpCircle, ChevronDown, ChevronUp, X, ArrowRight, Plus } from "lucide-react";
 import polrityLogo from "@/assets/polrity-logo.svg";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMeetings, type DbMeeting } from "@/lib/mindMapUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { FAQ_ITEMS } from "@/data/faqItems";
+import { PaywallModal } from "@/components/PaywallModal";
+import { useRevenueCat } from "@/contexts/RevenueCatContext";
 
 function HelpDialog({ onClose }: { onClose: () => void }) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -69,10 +70,28 @@ export default function MeetingList() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [helpOpen, setHelpOpen] = useState(false);
-  const [multiMode, setMultiMode] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [showTokenPaywall, setShowTokenPaywall] = useState(false);
+  const [freeMeetingsUsed, setFreeMeetingsUsed] = useState(0);
+  const { hasMeetingToken } = useRevenueCat();
+
+  const FREE_MEETING_LIMIT = 3;
+  const hasFreeMeetingsLeft = freeMeetingsUsed < FREE_MEETING_LIMIT;
 
   const queryClient = useQueryClient();
+
+  // Load meetings_created from Supabase profiles table
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("meetings_created")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setFreeMeetingsUsed(data.meetings_created ?? 0);
+      });
+  }, [user?.id]);
 
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery<DbMeeting[]>({
     queryKey: ["meetings"],
@@ -91,17 +110,26 @@ export default function MeetingList() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  // TODO: replace with real value from user's account / purchase state
-  // Pro/monthly subscribers → Infinity; free users → credits remaining
-  const remainingMeetings = 3;
-
-  // TODO: wire to meeting creation flow
-  // Generates a random meeting code in "xxxx-xxxx-xxxx" format (numerical)
-  // that can be used on any platform (Zoom, Teams, Meet, etc.)
-  const handleAddMeeting = () => {
+  const generateCode = useCallback(async () => {
     const segment = () => String(Math.floor(1000 + Math.random() * 9000));
     const code = `${segment()}-${segment()}-${segment()}`;
+    const newCount = freeMeetingsUsed + 1;
+    // Upsert meeting count into profiles table
+    if (user) {
+      await supabase
+        .from("profiles")
+        .upsert({ user_id: user.id, meetings_created: newCount }, { onConflict: "user_id" });
+      setFreeMeetingsUsed(newCount);
+    }
     setGeneratedCode(code);
+  }, [user, freeMeetingsUsed]);
+
+  const handleAddMeeting = () => {
+    if (!hasFreeMeetingsLeft && !hasMeetingToken) {
+      setShowTokenPaywall(true);
+      return;
+    }
+    generateCode();
   };
 
   const handleSignOut = async () => {
@@ -138,130 +166,95 @@ export default function MeetingList() {
       </nav>
 
       {/* Content */}
-      <main className="flex-1 flex flex-col items-center px-4 py-10">
-        <h1 className="text-3xl font-bold text-foreground mb-8">Meeting Dashboard</h1>
+      <main className="flex-1 flex flex-col items-center justify-center px-4">
 
-        {/* Meeting credits counter & add button
-            - remainingMeetings: number of single-meeting credits the user has left
-            - TODO: wire handleAddMeeting to purchase flow or meeting creation logic
-            - Pro/monthly users have unlimited meetings; free users consume credits per meeting */}
-        <div className="w-full max-w-2xl flex items-center justify-between mb-4">
-          <span className="text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{remainingMeetings}</span> meetings remaining
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
+        {generatedCode ? (
+          /* ── Meeting code screen ── */
+          <div className="flex flex-col items-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-400">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Your meeting code</span>
+              <span className="text-5xl font-bold tracking-[0.18em] text-foreground select-all">{generatedCode}</span>
+              <span className="text-sm text-muted-foreground mt-1">Share this code with participants to join the session.</span>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={() => navigate(`/app/meeting/${meetings[0]?.id ?? ""}`)}
+                className="flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all shadow-lg"
+              >
+                Continue to Meeting
+                <ArrowRight size={15} />
+              </button>
+              <button
+                onClick={() => setGeneratedCode(null)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ← Back
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── Default: two action buttons ── */
+          <div className="flex flex-col items-center gap-10">
+            <div className="flex flex-col items-center gap-2">
+              <img src={polrityLogo} alt="Polarity" className="h-10 w-auto object-contain mb-2 opacity-80" />
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">What would you like to do?</h1>
+              <p className="text-sm text-muted-foreground">Choose an option to get started.</p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
               <button
                 onClick={handleAddMeeting}
-                className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold border border-border text-muted-foreground hover:text-foreground hover:bg-accent active:scale-95 transition-all"
+                className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card px-10 py-8 w-56 hover:bg-accent hover:border-primary/40 active:scale-95 transition-all group shadow-sm"
               >
-                <Plus size={16} />
-                New meeting
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[220px] text-center">
-              <p className="text-xs">Generate a meeting code (xxxx-xxxx-xxxx) you can use on any platform to start recording insights.</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        <div className="w-full max-w-2xl flex flex-col gap-3">
-          {meetingsLoading ? (
-            <div className="text-center py-8 text-sm text-muted-foreground">
-              Loading meetings…
-            </div>
-          ) : meetings.length === 0 ? (
-            <div className="text-center py-8 text-sm text-muted-foreground">
-              No meetings found. Run the backend to process transcripts.
-            </div>
-          ) : (
-            meetings.map((m, idx) => (
-              <div
-                key={m.id}
-                className="w-full rounded-xl border border-border bg-card p-5"
-              >
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-muted-foreground font-medium">
-                    Meeting #{idx + 1}
-                  </span>
-                  <span className="text-base font-semibold text-foreground">
-                    {m.title}
-                  </span>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(m.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
+                <div className="rounded-full bg-primary/10 p-3 group-hover:bg-primary/20 transition-colors">
+                  <Plus size={22} className="text-primary" />
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-sm font-semibold text-foreground">Create New Meeting</span>
+                  <span className="text-xs text-muted-foreground text-center leading-relaxed">
+                    {hasFreeMeetingsLeft
+                      ? `${FREE_MEETING_LIMIT - freeMeetingsUsed} free meeting${FREE_MEETING_LIMIT - freeMeetingsUsed !== 1 ? "s" : ""} remaining`
+                      : "Token required"}
+                  </span>
+                </div>
+              </button>
 
-        <div className="flex items-center gap-4 mt-8">
-          {/* Mode toggle */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-2.5 bg-card cursor-default">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  {multiMode ? "Multi" : "Single"}
-                </span>
-                <button
-                  onClick={() => setMultiMode(!multiMode)}
-                  className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"
-                  style={{ background: multiMode ? "hsl(var(--primary))" : "hsl(var(--border))" }}
-                >
-                  <span
-                    className="pointer-events-none inline-block h-4 w-4 rounded-full shadow-sm transition-transform duration-200"
-                    style={{
-                      background: "hsl(var(--background))",
-                      transform: multiMode ? "translateX(16px)" : "translateX(0px)",
-                    }}
-                  />
-                </button>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[240px] text-center">
-              <p className="text-xs">
-                {multiMode
-                  ? "Multi mode lets you compare keywords across all meetings side by side."
-                  : "Single mode focuses on one meeting at a time for detailed analysis."}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+              <button
+                onClick={() => navigate(`/app/meeting/${meetings[0]?.id ?? ""}`)}
+                className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card px-10 py-8 w-56 hover:bg-accent hover:border-primary/40 active:scale-95 transition-all group shadow-sm"
+              >
+                <div className="rounded-full bg-primary/10 p-3 group-hover:bg-primary/20 transition-colors">
+                  <ArrowRight size={22} className="text-primary" />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-sm font-semibold text-foreground">Explore Old Insights</span>
+                  <span className="text-xs text-muted-foreground text-center leading-relaxed">Review keyword maps from past meetings</span>
+                </div>
+              </button>
+            </div>
 
-          <button
-            onClick={() => navigate(`/app/meeting/${meetings[0]?.id ?? ""}${multiMode ? "?multi=1" : ""}`)}
-            className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all"
-          >
-            Explore Insights
-            <ArrowRight size={15} />
-          </button>
-
-          <button
-            onClick={() => setHelpOpen(true)}
-            className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-accent active:scale-95 transition-all"
-          >
-            <HelpCircle size={18} />
-            How it works
-          </button>
-        </div>
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <HelpCircle size={13} />
+              How it works
+            </button>
+          </div>
+        )}
       </main>
 
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
 
-      {/* Generated meeting code badge — bottom right */}
-      {generatedCode && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-xl border border-border bg-card px-6 py-4 shadow-xl animate-in slide-in-from-bottom-2 fade-in duration-300">
-          <span className="text-sm text-muted-foreground font-medium">Meeting Code:</span>
-          <span className="text-lg font-bold text-foreground tracking-widest">{generatedCode}</span>
-          <button
-            onClick={() => setGeneratedCode(null)}
-            className="ml-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
+      {showTokenPaywall && (
+        <PaywallModal
+          type="consumable"
+          onClose={() => setShowTokenPaywall(false)}
+          onSuccess={() => {
+            setShowTokenPaywall(false);
+            generateCode();
+          }}
+        />
       )}
     </div>
   );

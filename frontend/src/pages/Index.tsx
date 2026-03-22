@@ -36,6 +36,8 @@ export default function Index() {
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const [hoveredKeyword, setHoveredKeyword] = useState<string | null>(null);
   const [draggingMeetingIdx, setDraggingMeetingIdx] = useState<number | null>(null);
+  const [minMentions, setMinMentions] = useState(1);
+
 
   // ── Realtime: invalidate meeting data when new mentions arrive ───────────
   const queryClient = useQueryClient();
@@ -96,6 +98,19 @@ export default function Index() {
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [loadedMeetings.length, crossShared]
+  );
+
+  // Filtered meetings — memoized so filter() doesn't create new array refs on every render
+  const filteredMeetings = useMemo(
+    () =>
+      meetings.map((m) => ({
+        ...m,
+        panelData: m.panelData.map((p) => ({
+          ...p,
+          bubbles: p.bubbles.filter((b) => b.count >= minMentions),
+        })),
+      })),
+    [meetings, minMentions]
   );
 
   // Collect all colorMaps in one place for beam color lookup
@@ -222,7 +237,7 @@ export default function Index() {
 
   return (
     <div className="flex flex-col" style={{ height: "100dvh", overflow: "hidden" }}>
-      <MindMapNavbar allColorMaps={allColorMaps} meetings={meetings} />
+      <MindMapNavbar allColorMaps={allColorMaps} meetings={meetings} minMentions={minMentions} onMinMentionsChange={setMinMentions} />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left rail: meeting selector (always visible) */}
@@ -261,7 +276,7 @@ export default function Index() {
         <div className="flex flex-1 min-w-0 min-h-0" style={{ height: "calc(100dvh - var(--navbar-h))", overflow: draggingMeetingIdx !== null ? "visible" : "hidden" }}>
           {isSingleMeeting ? (
             // ── Single meeting: full view with draggable physics ──
-            meetings[0]?.panelData.map(({ name, color, bubbles }, idx) => (
+            filteredMeetings[0]?.panelData.map(({ name, color, bubbles }, idx) => (
               <BubblePanel
                 key={`${activeIds[0]}-${name}`}
                 meetingId={activeIds[0]}
@@ -282,7 +297,7 @@ export default function Index() {
           ) : (
             // ── Multi-meeting: stacked meeting rows ──
             <div className="flex flex-col flex-1 min-h-0 divide-y divide-border" style={{ overflowY: draggingMeetingIdx !== null ? "visible" : "auto" }}>
-              {meetings.map((m) => (
+              {filteredMeetings.map((m) => (
                 <div
                   key={m.meeting.id}
                   className="flex flex-col min-h-0"
@@ -368,6 +383,7 @@ export default function Index() {
           onClose={() => setModalState(null)}
         />
       )}
+
     </div>
   );
 }

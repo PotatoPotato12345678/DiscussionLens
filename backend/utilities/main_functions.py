@@ -8,6 +8,7 @@
 from utilities.global_constant import (
     TRANSCRIPT_CSV_DIR,
     KEYWORD_EXTRACTION_MAIN_CONTEXT,
+    KEYWORD_CONSOLIDATION_CONTEXT,
     MODEL,
     EXTRACRTED_KEYWORDS_JSON_FILENAME,
     SPEAKER_GROUP_KEYWORDS_JSON_FILENAME,
@@ -18,7 +19,9 @@ from utilities.type_def import (
     Original_Transcript,
     Output_For_ChatGPT_Keyword_Extraction,
     GROUPED_OVERALL_EXTRACTED_KEYWORDS,
-    Input_For_ChatGPT_Keyword_Extraction
+    Input_For_ChatGPT_Keyword_Extraction,
+    KeywordConsolidationOutput,
+    KeywordMapping,
 )
 
 
@@ -78,6 +81,7 @@ class MainFunctions:
 
             response = client.responses.parse(
                 model=model,
+                reasoning={"effort":"low"},
                 store=True,
                 input=[
                     {"role": "system", "content": main_context},
@@ -97,6 +101,51 @@ class MainFunctions:
         def save_keywords(keywords: Output_For_ChatGPT_Keyword_Extraction, filename=EXTRACRTED_KEYWORDS_JSON_FILENAME) -> None:
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump(keywords.model_dump(), f, ensure_ascii=False, indent=2)
+
+        @staticmethod
+        def consolidate_keywords(openai_client, supabase_client, meeting_id: str) -> None:
+            """
+            After all rows for a meeting are processed, fetch every unique keyword,
+            ask GPT to group synonyms into canonical labels, then batch-update the DB.
+            """
+            from collections import defaultdict
+
+            result = (
+                supabase_client.table("keyword_mentions")
+                .select("keyword")
+                .eq("meeting_id", meeting_id)
+                .execute()
+            )
+            unique_keywords = list({row["keyword"] for row in (result.data or [])})
+
+            if not unique_keywords:
+                return
+
+            print(f"Consolidating {len(unique_keywords)} unique keywords...")
+
+            keyword_list = "\n".join(f"- {kw}" for kw in unique_keywords)
+            response = openai_client.responses.parse(
+                model=MODEL,
+                input=[
+                    {"role": "system", "content": KEYWORD_CONSOLIDATION_CONTEXT},
+                    {"role": "user", "content": keyword_list},
+                ],
+                text_format=KeywordConsolidationOutput,
+            )
+            canonical_to_originals: dict[str, list[str]] = defaultdict(list)
+            for item in response.output_parsed.mapping:
+                if item.original != item.canonical:
+                    canonical_to_originals[item.canonical].append(item.original)
+
+            for canonical, originals in canonical_to_originals.items():
+                (
+                    supabase_client.table("keyword_mentions")
+                    .update({"keyword": canonical})
+                    .eq("meeting_id", meeting_id)
+                    .in_("keyword", originals)
+                    .execute()
+                )
+                print(f"  Merged {originals} → '{canonical}'")
 
     class Supabase_Writer:
         @staticmethod

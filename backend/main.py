@@ -8,6 +8,7 @@ import glob
 from dotenv import load_dotenv
 import time
 from typing import Generator, List
+from openai import OpenAI
 
 if __name__ == "__main__":
     load_dotenv()
@@ -49,5 +50,10 @@ if __name__ == "__main__":
             )
 
             print("Row processed.")
+
+        print(f"Consolidating keywords for '{meeting_title}'...")
+        openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        MainFunctions.Keyword_Extraction.consolidate_keywords(openai_client, supabase, meeting_id)
+        print(f"=== Done: {source_file} ===")
 
     print("\n=== All meetings processed. ===")

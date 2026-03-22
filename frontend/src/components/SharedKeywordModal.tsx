@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Send, X, GripHorizontal, Plus, Minus } from "lucide-react";
+import { PaywallModal } from "@/components/PaywallModal";
+import { useRevenueCat } from "@/contexts/RevenueCatContext";
 
 interface SpeakerSection {
   speaker: string;
@@ -48,6 +50,8 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [showInsightsPaywall, setShowInsightsPaywall] = useState(false);
+  const { isSubscribed } = useRevenueCat();
   const [agreementScore] = useState<number | null>(null);
   const [chatInput, setChatInput] = useState("");
 
@@ -183,6 +187,7 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
               onMouseDown={(e) => e.stopPropagation()}
               onClick={async () => {
                 if (summaryLoading) return;
+                if (!isSubscribed) { setShowInsightsPaywall(true); return; }
                 if (summaryOpen && summary) { setSummaryOpen(false); return; }
                 setSummaryOpen(true);
                 if (summary) return;
@@ -305,6 +310,21 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
           </button>
         </div>
       </div>
+      {showInsightsPaywall && (
+        <PaywallModal
+          type="subscription"
+          onClose={() => setShowInsightsPaywall(false)}
+          onSuccess={() => {
+            setShowInsightsPaywall(false);
+            setSummaryOpen(true);
+            setSummaryLoading(true);
+            fetchSummary(keyword, displayedSections)
+              .then(setSummary)
+              .catch(() => setSummary("Failed to generate summary. Please try again."))
+              .finally(() => setSummaryLoading(false));
+          }}
+        />
+      )}
     </div>
   );
 }
