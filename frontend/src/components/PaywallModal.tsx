@@ -29,7 +29,7 @@ const COPY = {
 };
 
 export function PaywallModal({ type, onClose, onSuccess }: Props) {
-  const { refreshCustomerInfo } = useRevenueCat();
+  const { refreshCustomerInfo, offerings } = useRevenueCat();
   const [loading, setLoading] = useState(false);
 
   const copy = COPY[type];
@@ -39,11 +39,15 @@ export function PaywallModal({ type, onClose, onSuccess }: Props) {
     if (!Purchases.isConfigured()) return;
     setLoading(true);
     try {
-      await Purchases.getSharedInstance().presentPaywall({});
+      const offering = offerings?.current ?? (offerings?.all ? Object.values(offerings.all)[0] : undefined);
+      await Purchases.getSharedInstance().presentPaywall(offering ? { offering } : undefined);
       await refreshCustomerInfo();
       onSuccess();
-    } catch {
-      // user dismissed — close silently
+    } catch (err: unknown) {
+      const isCancel =
+        err instanceof Error &&
+        (err.message.toLowerCase().includes("cancel") || err.message.toLowerCase().includes("dismiss"));
+      if (!isCancel) console.error("[RC] PaywallModal purchase error:", err);
       onClose();
     } finally {
       setLoading(false);

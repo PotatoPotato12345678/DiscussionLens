@@ -51,7 +51,7 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showInsightsPaywall, setShowInsightsPaywall] = useState(false);
-  const { isSubscribed } = useRevenueCat();
+  const { isSubscribed, isReady: rcReady } = useRevenueCat();
   const [agreementScore] = useState<number | null>(null);
   const [chatInput, setChatInput] = useState("");
 
@@ -187,7 +187,7 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
               onMouseDown={(e) => e.stopPropagation()}
               onClick={async () => {
                 if (summaryLoading) return;
-                if (!isSubscribed) { setShowInsightsPaywall(true); return; }
+                if (rcReady && !isSubscribed) { setShowInsightsPaywall(true); return; }
                 if (summaryOpen && summary) { setSummaryOpen(false); return; }
                 setSummaryOpen(true);
                 if (summary) return;

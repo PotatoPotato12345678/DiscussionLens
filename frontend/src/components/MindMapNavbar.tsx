@@ -31,8 +31,12 @@ export function MindMapNavbar({ allColorMaps, meetings, minMentions, onMinMentio
       if (!offering) { console.warn("[RC] No offerings available"); return; }
       await Purchases.getSharedInstance().presentPaywall({ offering });
       await refreshCustomerInfo();
-    } catch (err) {
-      console.error("[RC] presentPaywall error:", err);
+    } catch (err: unknown) {
+      // RC throws when user dismisses the paywall — not a real error
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("back")) {
+        console.error("[RC] presentPaywall error:", err);
+      }
     }
   };
 
