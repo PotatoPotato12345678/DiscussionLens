@@ -22,7 +22,12 @@ interface Props {
   onClose: () => void;
 }
 
-async function fetchSummary(keyword: string, sections: SpeakerSection[]): Promise<string> {
+interface InsightData {
+  similarities: string[];
+  differences: string[];
+}
+
+async function fetchSummary(keyword: string, sections: SpeakerSection[]): Promise<InsightData> {
   const backendUrl = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8000";
 
   const res = await fetch(`${backendUrl}/summarize`, {
@@ -36,7 +41,10 @@ async function fetchSummary(keyword: string, sections: SpeakerSection[]): Promis
 
   if (!res.ok) throw new Error(`Backend error ${res.status}`);
   const data = await res.json();
-  return data.summary ?? "No summary returned.";
+  return {
+    similarities: data.similarities ?? [],
+    differences: data.differences ?? [],
+  };
 }
 
 const INITIAL_W = 672;
@@ -48,7 +56,8 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
 
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [summary, setSummary] = useState<string | null>(null);
+  const [summary, setSummary] = useState<InsightData | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showInsightsPaywall, setShowInsightsPaywall] = useState(false);
   const { isSubscribed, isReady: rcReady } = useRevenueCat();
@@ -192,11 +201,12 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
                 setSummaryOpen(true);
                 if (summary) return;
                 setSummaryLoading(true);
+                setSummaryError(null);
                 try {
-                  const text = await fetchSummary(keyword, displayedSections);
-                  setSummary(text);
+                  const data = await fetchSummary(keyword, displayedSections);
+                  setSummary(data);
                 } catch {
-                  setSummary("Failed to generate summary. Please try again.");
+                  setSummaryError("Failed to generate insights. Please try again.");
                 } finally {
                   setSummaryLoading(false);
                 }
@@ -217,17 +227,64 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
           </div>
         </div>
 
-        {/* ── AI Summary Panel (toggle) ── */}
+        {/* ── AI Insights Panel (toggle) ── */}
         {summaryOpen && (
           <div
-            className="px-6 py-4 border-b border-border text-sm leading-relaxed shrink-0"
+            className="px-5 py-4 border-b border-border shrink-0"
             style={{ background: "hsl(var(--background) / 0.6)" }}
           >
             {summaryLoading ? (
-              <p className="text-muted-foreground animate-pulse">Generating summary…</p>
-            ) : (
-              <p className="italic text-white/80">{summary}</p>
-            )}
+              <div className="flex items-center gap-2 text-muted-foreground text-sm animate-pulse">
+                <span>✨</span>
+                <span>Generating insights…</span>
+              </div>
+            ) : summaryError ? (
+              <p className="text-sm text-red-400">{summaryError}</p>
+            ) : summary ? (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Similarities */}
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                      In Common
+                    </span>
+                  </div>
+                  {summary.similarities.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No common ground identified.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {summary.similarities.map((point, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/80">
+                          <span className="mt-0.5 shrink-0 text-emerald-400">✓</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Differences */}
+                <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                      Points of Difference
+                    </span>
+                  </div>
+                  {summary.differences.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No differences identified.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {summary.differences.map((point, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/80">
+                          <span className="mt-0.5 shrink-0 text-amber-400">✕</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -318,9 +375,10 @@ export function SharedKeywordModal({ keyword, sections, allSections, onClose }: 
             setShowInsightsPaywall(false);
             setSummaryOpen(true);
             setSummaryLoading(true);
+            setSummaryError(null);
             fetchSummary(keyword, displayedSections)
               .then(setSummary)
-              .catch(() => setSummary("Failed to generate summary. Please try again."))
+              .catch(() => setSummaryError("Failed to generate insights. Please try again."))
               .finally(() => setSummaryLoading(false));
           }}
         />

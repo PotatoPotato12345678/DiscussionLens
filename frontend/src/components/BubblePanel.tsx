@@ -501,6 +501,8 @@ export function BubblePanel({
     return () => {
       sim.stop();
       spawnTimers.forEach(clearTimeout);
+      svg.selectAll("*").remove();   // clear old elements so re-run starts from scratch
+      innerGroupMap.current.clear(); // reset hover-highlight map
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bubbles, color, speakerName, meetingId, readonly]);

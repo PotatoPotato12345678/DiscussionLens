@@ -73,7 +73,7 @@ export default function MeetingList() {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [showTokenPaywall, setShowTokenPaywall] = useState(false);
   const [freeMeetingsUsed, setFreeMeetingsUsed] = useState(0);
-  const { hasMeetingToken } = useRevenueCat();
+  const { hasMeetingToken, isSubscribed } = useRevenueCat();
 
   const FREE_MEETING_LIMIT = 3;
   const hasFreeMeetingsLeft = freeMeetingsUsed < FREE_MEETING_LIMIT;
@@ -158,10 +158,12 @@ export default function MeetingList() {
             <LogOut size={13} />
             Sign out
           </button>
-          <button className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all">
-            <Crown size={12} />
-            Upgrade
-          </button>
+          {!isSubscribed && (
+            <button className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 transition-all">
+              <Crown size={12} />
+              Upgrade
+            </button>
+          )}
         </div>
       </nav>
 

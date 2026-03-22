@@ -32,7 +32,8 @@ class SummarizeRequest(BaseModel):
 
 
 class SummarizeResponse(BaseModel):
-    summary: str
+    similarities: List[str]
+    differences: List[str]
 
 
 @app.post("/summarize", response_model=SummarizeResponse)
@@ -56,37 +57,45 @@ async def summarize(req: SummarizeRequest):
     if not api_key:
         speaker_names = ", ".join(s.speaker for s in req.sections)
         return SummarizeResponse(
-            summary=(
-                f"[Demo] The topic \"{req.keyword}\" was discussed by {speaker_names}. "
-                "AI-powered insight extraction will be available once the backend is fully connected. "
-                "This is a placeholder summary shown in sandbox mode."
-            )
+            similarities=[f"Both speakers addressed the topic of \"{req.keyword}\"."],
+            differences=[
+                f"[Demo] {speaker_names} — AI-powered insight extraction will be available once the backend is fully connected.",
+            ],
         )
 
     client = OpenAI(api_key=api_key)
 
+    import json as _json
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
+            response_format={"type": "json_object"},
             messages=[
                 {
                     "role": "system",
                     "content": (
                         "You are an impartial discussion analyst. "
-                        "Write a concise 2-3 sentence unbiased summary of how the speakers addressed the given topic. "
-                        "Highlight agreements, disagreements, and unique perspectives. Be neutral and factual."
+                        "Analyze how the speakers addressed the given topic and return a JSON object with exactly two keys:\n"
+                        "- \"similarities\": a list of 2-4 concise bullet points (1-2 sentences each) where the speakers agreed or held similar views.\n"
+                        "- \"differences\": a list of 2-4 concise bullet points (1-2 sentences each) where the speakers disagreed or held distinct views.\n"
+                        "If there is only one speaker, leave \"similarities\" as an empty list and use \"differences\" to summarise their key points.\n"
+                        "Be specific, neutral, and factual. Do not include speaker names in every sentence — vary the phrasing."
                     ),
                 },
                 {"role": "user", "content": user_message},
             ],
-            max_tokens=180,
+            max_tokens=400,
         )
-        summary = response.choices[0].message.content.strip()
+        raw = _json.loads(response.choices[0].message.content)
+        similarities = [s for s in raw.get("similarities", []) if isinstance(s, str)]
+        differences = [s for s in raw.get("differences", []) if isinstance(s, str)]
     except Exception:
         speaker_names = ", ".join(s.speaker for s in req.sections)
-        summary = (
+        similarities = []
+        differences = [
             f"[Demo] The topic \"{req.keyword}\" was discussed by {speaker_names}. "
             "AI-powered insight extraction will be available once the backend is fully connected."
-        )
+        ]
 
-    return SummarizeResponse(summary=summary)
+    return SummarizeResponse(similarities=similarities, differences=differences)

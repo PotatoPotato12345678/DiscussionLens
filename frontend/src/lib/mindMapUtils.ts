@@ -1,16 +1,6 @@
-import { mindMapData } from "@/data/mindMapData";
-import { mindMapData2 } from "@/data/mindMapData2";
-import { mindMapData3 } from "@/data/mindMapData3";
 import { supabase } from "@/integrations/supabase/client";
 
 export const SPEAKER_COLORS = ["#3b82f6", "#f97316", "#22c55e", "#e879f9"];
-
-// Static fallback data for offline / dev use
-export const STATIC_MEETINGS = [
-  { id: "m1", title: "Nakamoto Investment Deep Dive", data: mindMapData },
-  { id: "m2", title: mindMapData2.meetingTitle, data: mindMapData2 },
-  { id: "m3", title: mindMapData3.meetingTitle, data: mindMapData3 },
-] as const;
 
 export type MeetingId = string;
 

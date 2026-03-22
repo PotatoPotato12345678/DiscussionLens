@@ -8,6 +8,8 @@ import { SharedKeywordModal } from "@/components/SharedKeywordModal";
 import { ConnectionBeam } from "@/components/ConnectionBeam";
 import { MergeOverlay } from "@/components/MergeOverlay";
 import { MeetingSelector } from "@/components/MeetingSelector";
+import { PaywallModal } from "@/components/PaywallModal";
+import { useRevenueCat } from "@/contexts/RevenueCatContext";
 import {
   buildMeetingPanelData,
   crossMeetingKeywords,
@@ -28,16 +30,26 @@ interface ModalState {
 export default function Index() {
   const [searchParams] = useSearchParams();
   const { meetingId: urlMeetingId } = useParams<{ meetingId: string }>();
+  const { isSubscribed, isReady } = useRevenueCat();
 
   const [activeIds, setActiveIds] = useState<MeetingId[]>(() =>
     urlMeetingId ? [urlMeetingId] : []
   );
   const [multiMode, setMultiMode] = useState(() => searchParams.get("multi") === "1");
+  const [showMultiPaywall, setShowMultiPaywall] = useState(false);
   const [modalState, setModalState] = useState<ModalState | null>(null);
   const [hoveredKeyword, setHoveredKeyword] = useState<string | null>(null);
   const [draggingMeetingIdx, setDraggingMeetingIdx] = useState<number | null>(null);
   const [minMentions, setMinMentions] = useState(1);
 
+
+  // ── Guard: reset multi-mode if user is not subscribed ────────────────────
+  useEffect(() => {
+    if (isReady && !isSubscribed && multiMode) {
+      setMultiMode(false);
+      setActiveIds((prev) => [prev[0] ?? ""]);
+    }
+  }, [isReady, isSubscribed]);
 
   // ── Realtime: invalidate meeting data when new mentions arrive ───────────
   const queryClient = useQueryClient();
@@ -244,9 +256,13 @@ export default function Index() {
         <MeetingSelector
           activeIds={activeIds}
           multiMode={multiMode}
+          canMulti={isSubscribed}
           onMultiModeChange={(v) => {
+            if (v && !isSubscribed) {
+              setShowMultiPaywall(true);
+              return;
+            }
             setMultiMode(v);
-            // Switching to single: keep only the first active meeting (or first DB meeting)
             if (!v) setActiveIds((prev) => [prev[0] ?? dbMeetings[0]?.id ?? ""]);
           }}
           onToggle={(id) => {
@@ -381,6 +397,17 @@ export default function Index() {
           sections={modalState.sections}
           allSections={modalState.allSections}
           onClose={() => setModalState(null)}
+        />
+      )}
+
+      {showMultiPaywall && (
+        <PaywallModal
+          type="subscription"
+          onClose={() => setShowMultiPaywall(false)}
+          onSuccess={() => {
+            setShowMultiPaywall(false);
+            setMultiMode(true);
+          }}
         />
       )}
 

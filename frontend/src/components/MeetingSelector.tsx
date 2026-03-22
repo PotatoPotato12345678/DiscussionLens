@@ -19,6 +19,7 @@ interface Props {
   activeColorMaps: Record<string, Record<string, string>>;
   crossShared: Set<string>;
   meetingPanelData: { meeting: MeetingInfo; speakers: string[] }[];
+  canMulti: boolean;
 }
 
 import { FAQ_ITEMS } from "@/data/faqItems";
@@ -66,7 +67,7 @@ function HelpPanel() {
   );
 }
 
-export function MeetingSelector({ activeIds, onToggle, meetings, multiMode, onMultiModeChange }: Props) {
+export function MeetingSelector({ activeIds, onToggle, meetings, multiMode, onMultiModeChange, canMulti }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
 
@@ -127,9 +128,16 @@ export function MeetingSelector({ activeIds, onToggle, meetings, multiMode, onMu
           {/* Mode toggle */}
           <div className="mb-3 px-1">
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2" style={{ background: "hsl(var(--background) / 0.5)" }}>
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                {multiMode ? "Multi" : "Single"}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                  {multiMode ? "Multi" : "Single"}
+                </span>
+                {!canMulti && (
+                  <span className="text-[9px] font-bold text-amber-400 border border-amber-400/40 rounded px-1">
+                    PRO
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => onMultiModeChange(!multiMode)}
                 className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"

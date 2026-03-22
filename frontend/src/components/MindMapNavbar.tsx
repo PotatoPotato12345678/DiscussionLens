@@ -104,6 +104,11 @@ export function MindMapNavbar({ allColorMaps, meetings, minMentions, onMinMentio
             {user.user_metadata?.username ?? user.email?.split("@")[0]}
           </span>
         )}
+        {isSubscribed && (
+          <span className="text-[10px] font-bold tracking-widest uppercase text-amber-400 border border-amber-400/40 rounded-full px-2 py-0.5">
+            PRO
+          </span>
+        )}
         <button
           onClick={handleSignOut}
           title="Sign out"
